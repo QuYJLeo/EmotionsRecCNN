@@ -41,6 +41,12 @@ The system supports 8 emotion categories:
 
 In addition to emotion recognition, the project also includes a lightweight face detection module (SlimNet) for real-time processing pipelines.
 
+### Demo Result
+
+![Emotion Recognition Demo](res.png)
+
+*Figure: Real-time facial emotion recognition demonstration showing face detection bounding box and emotion probability visualization*
+
 ---
 
 ## Features
