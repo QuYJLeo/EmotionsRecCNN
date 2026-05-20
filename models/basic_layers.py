@@ -1,22 +1,7 @@
-import torch
 import torch.nn as nn
-from torch.nn import init
-import functools
-from torch.autograd import Variable
-import numpy as np
 
 
 class ResidualBlock(nn.Module):
-    """A residual block for residual networks.
-    
-    This block follows the bottleneck design pattern with 1x1, 3x3, and 1x1 convolutions.
-    It includes batch normalization and ReLU activation layers.
-
-    Args:
-        input_channels (int): Number of input channels
-        output_channels (int): Number of output channels
-        stride (int): Stride for the convolution layers, default is 1
-    """
     def __init__(self, input_channels, output_channels, stride=1):
         super(ResidualBlock, self).__init__()
         self.input_channels = input_channels
@@ -45,14 +30,6 @@ class ResidualBlock(nn.Module):
         self.conv4 = nn.Conv2d(input_channels, output_channels, 1, stride, bias=False)
 
     def forward(self, x):
-        """Forward pass of the residual block.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output tensor after residual connection
-        """
         residual = x
         out = self.bn1(x)
         out1 = self.relu(out)

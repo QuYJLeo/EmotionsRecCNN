@@ -30,11 +30,11 @@ Film_DICT = {
 
 def main():
     net = Slim()
-    net.load_state_dict(torch.load('./checkpoints/slim_Final.pth', weights_only=False), strict=False)
+    net.load_state_dict(torch.load('../checkpoints/slim_Final.pth', weights_only=False), strict=False)
     net.cuda()
     net.eval()
 
-    model = onnxruntime.InferenceSession('./checkpoints/emotionModel_noDrop0.4.onnx', providers=['CUDAExecutionProvider',])  # 'CUDAExecutionProvider',
+    model = onnxruntime.InferenceSession('../checkpoints/emotionModel_noDrop0.4.onnx', providers=['CUDAExecutionProvider',])  # 'CUDAExecutionProvider',
 
 
     # cap = 'personID7_dis200_hgt160_Acap.avi'

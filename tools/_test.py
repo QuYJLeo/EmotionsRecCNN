@@ -30,18 +30,17 @@ Film_DICT = {
 
 def main():
     net = Slim()
-    net.load_state_dict(torch.load('./checkpoints/slim_Final.pth'), strict=False)
+    net.load_state_dict(torch.load('../checkpoints/slim_Final.pth', weights_only=False), strict=False)
     net.cuda()
     net.eval()
 
 
     model = ResMasking(num_classes=8)
-    model.load_state_dict(torch.load("./checkpoints/emotionModel_noDrop0.4.pth")["net"])
+    model.load_state_dict(torch.load("../checkpoints/emotionModel_noDrop0.4.pth", weights_only=False)["net"])
 
     model.cuda()
     model.eval()
 
-    # cap = 'personID7_dis200_hgt160_Acap.avi'
     cap = 0
     vid = cv2.VideoCapture(cap)
     while True:

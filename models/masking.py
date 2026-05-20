@@ -1,22 +1,10 @@
 import traceback
 import torch
 import torch.nn as nn
-
-from .resnet import conv1x1, conv3x3, BasicBlock, Bottleneck
+from .resnet import conv1x1, BasicBlock, Bottleneck
 
 
 def up_pooling(in_channels, out_channels, kernel_size=2, stride=2):
-    """Create an upsampling pooling layer using transposed convolution.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels
-        kernel_size (int): Kernel size for transposed convolution, default is 2
-        stride (int): Stride for transposed convolution, default is 2
-
-    Returns:
-        torch.nn.Sequential: Sequential container with transposed conv, batch norm, and ReLU
-    """
     return nn.Sequential(
         nn.ConvTranspose2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride
@@ -27,16 +15,6 @@ def up_pooling(in_channels, out_channels, kernel_size=2, stride=2):
 
 
 class Masking4(nn.Module):
-    """A 4-level masking module with encoder-decoder architecture.
-    
-    This module implements a U-Net like structure with 4 downsampling levels
-    and 4 upsampling levels for generating attention masks.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels (must equal in_channels)
-        block (nn.Module): Residual block type, default is BasicBlock
-    """
     def __init__(self, in_channels, out_channels, block=BasicBlock):
         assert in_channels == out_channels
         super(Masking4, self).__init__()
@@ -95,6 +73,15 @@ class Masking4(nn.Module):
             nn.BatchNorm2d(filters[0]),
         )
 
+        """
+        self.up_pool4 = up_pooling(filters[3], filters[2])
+        self.conv4 = block(filters[3], filters[2], downsample=conv1x1(filters[3], filters[2], 1))
+        self.up_pool5 = up_pooling(filters[2], filters[1])
+        self.conv5 = block(filters[2], filters[1], downsample=conv1x1(filters[2], filters[1], 1))
+
+        self.conv6 = block(filters[1], filters[0], downsample=conv1x1(filters[1], filters[0], 1))
+        """
+
         self.up_pool5 = up_pooling(filters[4], filters[3])
         self.conv5 = block(filters[4], filters[3], downsample=self.downsample5)
         self.up_pool6 = up_pooling(filters[3], filters[2])
@@ -103,6 +90,7 @@ class Masking4(nn.Module):
         self.conv7 = block(filters[2], filters[1], downsample=self.downsample7)
         self.conv8 = block(filters[1], filters[0], downsample=self.downsample8)
 
+        # init weight
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -110,6 +98,9 @@ class Masking4(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        # Zero-initialize the last BN in each residual branch,
+        # so that the residual branch starts with zeros, and each residual block behaves like an identity.
+        # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         for m in self.modules():
             if isinstance(m, Bottleneck):
                 nn.init.constant_(m.bn3.weight, 0)
@@ -117,14 +108,6 @@ class Masking4(nn.Module):
                 nn.init.constant_(m.bn2.weight, 0)
 
     def forward(self, x):
-        """Forward pass of the Masking4 module.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output mask tensor after softmax activation
-        """
         x1 = self.conv1(x)
         p1 = self.down_pooling(x1)
         x2 = self.conv2(p1)
@@ -148,20 +131,11 @@ class Masking4(nn.Module):
         x8 = self.conv8(x7)
 
         output = torch.softmax(x8, dim=1)
+        # output = torch.sigmoid(x8)
         return output
 
 
 class Masking3(nn.Module):
-    """A 3-level masking module with encoder-decoder architecture.
-    
-    This module implements a U-Net like structure with 3 downsampling levels
-    and 3 upsampling levels for generating attention masks.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels (must equal in_channels)
-        block (nn.Module): Residual block type, default is BasicBlock
-    """
     def __init__(self, in_channels, out_channels, block=BasicBlock):
         assert in_channels == out_channels
         super(Masking3, self).__init__()
@@ -203,6 +177,15 @@ class Masking3(nn.Module):
             nn.BatchNorm2d(filters[0]),
         )
 
+        """
+        self.up_pool4 = up_pooling(filters[3], filters[2])
+        self.conv4 = block(filters[3], filters[2], downsample=conv1x1(filters[3], filters[2], 1))
+        self.up_pool5 = up_pooling(filters[2], filters[1])
+        self.conv5 = block(filters[2], filters[1], downsample=conv1x1(filters[2], filters[1], 1))
+
+        self.conv6 = block(filters[1], filters[0], downsample=conv1x1(filters[1], filters[0], 1))
+        """
+
         self.up_pool4 = up_pooling(filters[3], filters[2])
         self.conv4 = block(filters[3], filters[2], downsample=self.downsample4)
         self.up_pool5 = up_pooling(filters[2], filters[1])
@@ -210,6 +193,7 @@ class Masking3(nn.Module):
 
         self.conv6 = block(filters[1], filters[0], downsample=self.downsample6)
 
+        # init weight
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -217,6 +201,9 @@ class Masking3(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        # Zero-initialize the last BN in each residual branch,
+        # so that the residual branch starts with zeros, and each residual block behaves like an identity.
+        # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         for m in self.modules():
             if isinstance(m, Bottleneck):
                 nn.init.constant_(m.bn3.weight, 0)
@@ -224,14 +211,6 @@ class Masking3(nn.Module):
                 nn.init.constant_(m.bn2.weight, 0)
 
     def forward(self, x):
-        """Forward pass of the Masking3 module.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output mask tensor after softmax activation
-        """
         x1 = self.conv1(x)
         p1 = self.down_pooling(x1)
         x2 = self.conv2(p1)
@@ -240,6 +219,7 @@ class Masking3(nn.Module):
 
         x4 = self.up_pool4(x3)
         x4 = torch.cat([x4, x2], dim=1)
+
         x4 = self.conv4(x4)
 
         x5 = self.up_pool5(x4)
@@ -249,20 +229,11 @@ class Masking3(nn.Module):
         x6 = self.conv6(x5)
 
         output = torch.softmax(x6, dim=1)
+        # output = torch.sigmoid(x6)
         return output
 
 
 class Masking2(nn.Module):
-    """A 2-level masking module with encoder-decoder architecture.
-    
-    This module implements a U-Net like structure with 2 downsampling levels
-    and 2 upsampling levels for generating attention masks.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels (must equal in_channels)
-        block (nn.Module): Residual block type, default is BasicBlock
-    """
     def __init__(self, in_channels, out_channels, block=BasicBlock):
         assert in_channels == out_channels
         super(Masking2, self).__init__()
@@ -293,10 +264,16 @@ class Masking2(nn.Module):
             nn.BatchNorm2d(filters[0]),
         )
 
+        """
+        self.up_pool3 = up_pooling(filters[2], filters[1])
+        self.conv3 = block(filters[2], filters[1], downsample=conv1x1(filters[2], filters[1], 1))
+        self.conv4 = block(filters[1], filters[0], downsample=conv1x1(filters[1], filters[0], 1))
+        """
         self.up_pool3 = up_pooling(filters[2], filters[1])
         self.conv3 = block(filters[2], filters[1], downsample=self.downsample3)
         self.conv4 = block(filters[1], filters[0], downsample=self.downsample4)
 
+        # init weight
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -304,6 +281,9 @@ class Masking2(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        # Zero-initialize the last BN in each residual branch,
+        # so that the residual branch starts with zeros, and each residual block behaves like an identity.
+        # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         for m in self.modules():
             if isinstance(m, Bottleneck):
                 nn.init.constant_(m.bn3.weight, 0)
@@ -311,14 +291,6 @@ class Masking2(nn.Module):
                 nn.init.constant_(m.bn2.weight, 0)
 
     def forward(self, x):
-        """Forward pass of the Masking2 module.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output mask tensor after softmax activation
-        """
         x1 = self.conv1(x)
         p1 = self.down_pooling(x1)
         x2 = self.conv2(p1)
@@ -330,20 +302,11 @@ class Masking2(nn.Module):
         x4 = self.conv4(x3)
 
         output = torch.softmax(x4, dim=1)
+        # output = torch.sigmoid(x4)
         return output
 
 
 class Masking1(nn.Module):
-    """A 1-level masking module with simple encoder-decoder architecture.
-    
-    This module implements a simple masking structure with 1 downsampling level
-    and 1 upsampling level for generating attention masks.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels (must equal in_channels)
-        block (nn.Module): Residual block type, default is BasicBlock
-    """
     def __init__(self, in_channels, out_channels, block=BasicBlock):
         assert in_channels == out_channels
         super(Masking1, self).__init__()
@@ -363,6 +326,7 @@ class Masking1(nn.Module):
 
         self.conv2 = block(filters[1], filters[0], downsample=self.downsample2)
 
+        # init weight
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
@@ -370,6 +334,9 @@ class Masking1(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
+        # Zero-initialize the last BN in each residual branch,
+        # so that the residual branch starts with zeros, and each residual block behaves like an identity.
+        # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         for m in self.modules():
             if isinstance(m, Bottleneck):
                 nn.init.constant_(m.bn3.weight, 0)
@@ -377,35 +344,14 @@ class Masking1(nn.Module):
                 nn.init.constant_(m.bn2.weight, 0)
 
     def forward(self, x):
-        """Forward pass of the Masking1 module.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output mask tensor after softmax activation
-        """
         x1 = self.conv1(x)
         x2 = self.conv2(x1)
         output = torch.softmax(x2, dim=1)
+        # output = torch.sigmoid(x2)
         return output
 
 
 def masking(in_channels, out_channels, depth, block=BasicBlock):
-    """Factory function to create masking modules with specified depth.
-
-    Args:
-        in_channels (int): Number of input channels
-        out_channels (int): Number of output channels
-        depth (int): Depth of the masking module (1-4)
-        block (nn.Module): Residual block type, default is BasicBlock
-
-    Returns:
-        Masking1, Masking2, Masking3, or Masking4: Masking module with specified depth
-
-    Raises:
-        Exception: If depth is not between 1 and 4
-    """
     if depth == 1:
         return Masking1(in_channels, out_channels, block)
     elif depth == 2:
@@ -416,4 +362,4 @@ def masking(in_channels, out_channels, depth, block=BasicBlock):
         return Masking4(in_channels, out_channels, block)
     else:
         traceback.print_exc()
-        raise Exception("depth need to be from 1-4")
+        raise Exception("depth need to be from 0-3")
