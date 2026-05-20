@@ -47,6 +47,11 @@ In addition to emotion recognition, the project also includes a lightweight face
 
 *Figure: Real-time facial emotion recognition demonstration showing face detection bounding box and emotion probability visualization*
 
+### Pre-trained Models
+
+Download pre-trained models from Google Drive:  
+[https://drive.google.com/drive/folders/1T4eZRJw3ln60dYt_wFYML2jimQSnwUeI](https://drive.google.com/drive/folders/1T4eZRJw3ln60dYt_wFYML2jimQSnwUeI)
+
 ---
 
 ## Features
